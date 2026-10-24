@@ -2,6 +2,7 @@ import './style.css';
 import init, { Graphnote } from './wasm/graphnote_core.js';
 import * as db from './db';
 import { makeZip } from './zip';
+import { createEditor, type EditorApi } from './editor';
 
 type Info = { id: number; path: string; title: string; updated: number };
 type Hit = { id: number; path: string; snippet: string };
@@ -17,6 +18,7 @@ const store = {
 };
 
 let gn: Graphnote;
+let editor: EditorApi;
 let cur: number | null = null;
 let mode: 'edit' | 'view' | 'graph' = 'edit';
 let tab: 'files' | 'tags' = 'files';
@@ -72,12 +74,11 @@ function setMode(m: typeof mode) {
 function openNote(id: number | null, newMode?: typeof mode) {
   flushSave();
   cur = id;
-  const ed = $<HTMLTextAreaElement>('editor');
   const title = $<HTMLInputElement>('title');
-  if (id === null) { ed.value = ''; title.value = ''; title.disabled = true; }
+  if (id === null) { editor.openDoc(''); title.value = ''; title.disabled = true; }
   else {
     const n = J<db.StoredNote>(gn.get_note(id));
-    ed.value = n.body; title.value = n.path; title.disabled = false;
+    editor.openDoc(n.body); title.value = n.path; title.disabled = false;
     store.set('last', String(id));
   }
   setMode(newMode ?? (mode === 'graph' ? 'edit' : mode));
@@ -101,7 +102,7 @@ function uniquePath(base: string) {
 function flushSave() {
   if (!saveTimer) return;
   clearTimeout(saveTimer); saveTimer = 0;
-  if (cur !== null) { gn.update_note(cur, $<HTMLTextAreaElement>('editor').value, now()); void persist([cur]); }
+  if (cur !== null) { gn.update_note(cur, editor.getValue(), now()); void persist([cur]); }
 }
 
 function scheduleSave() {
@@ -109,7 +110,7 @@ function scheduleSave() {
   saveTimer = window.setTimeout(() => {
     saveTimer = 0;
     if (cur === null) return;
-    gn.update_note(cur, $<HTMLTextAreaElement>('editor').value, now());
+    gn.update_note(cur, editor.getValue(), now());
     void persist([cur]);
     renderRight(); if (!$<HTMLInputElement>('search').value) refreshList();
   }, 350);
@@ -129,6 +130,7 @@ async function openToday() {
 // ---------- right panel ----------
 function renderRight() {
   const set = (id: string, html: string) => { $(id).innerHTML = html || '<span class="muted">—</span>'; };
+  editor?.refresh();
   if (cur === null) { ['backlinks', 'outgoing', 'unresolved', 'mentions'].forEach((i) => set(i, '')); $('bl-count').textContent = ''; return; }
   const bl = J<Back[]>(gn.backlinks(cur));
   $('bl-count').textContent = bl.length ? `(${bl.length})` : '';
@@ -162,9 +164,7 @@ function renderPreview() {
 function toggleTask(index: number, checked: boolean) {
   if (cur === null) return;
   let i = -1;
-  const ed = $<HTMLTextAreaElement>('editor');
-  ed.value = ed.value.replace(/^(\s*[-*+] )\[( |x|X)\]/gm, (m, pre) => (++i === index ? `${pre}[${checked ? 'x' : ' '}]` : m));
-  scheduleSave();
+  editor.replaceAll(editor.getValue().replace(/^(\s*[-*+] )\[( |x|X)\]/gm, (m, pre) => (++i === index ? `${pre}[${checked ? 'x' : ' '}]` : m)));
 }
 
 async function followWiki(t: string) {
@@ -174,22 +174,9 @@ async function followWiki(t: string) {
 }
 
 // ---------- editor helpers ----------
-function insert(text: string) {
-  const ed = $<HTMLTextAreaElement>('editor');
-  const [s, e] = [ed.selectionStart, ed.selectionEnd];
-  const caret = text.indexOf('|');
-  const t = text.replace('|', ed.value.slice(s, e));
-  ed.setRangeText(t, s, e, 'end');
-  if (caret >= 0) { const p = s + caret + (e - s); ed.setSelectionRange(p, p); }
-  ed.focus();
-  ed.dispatchEvent(new Event('input'));
-}
-
 function updateSuggest() {
-  const ed = $<HTMLTextAreaElement>('editor');
   const box = $('suggest');
-  const before = ed.value.slice(0, ed.selectionStart);
-  const m = /\[\[([^\]\n|#]*)$/.exec(before);
+  const m = /\[\[([^\]\n|#]*)$/.exec(editor.beforeCursor().text);
   if (!m || mode !== 'edit') { box.hidden = true; return; }
   const items = J<Info[]>(gn.suggest(m[1], 8)).filter((n) => n.id !== cur);
   const exact = m[1].trim() && !items.some((n) => n.path.toLowerCase() === m[1].trim().toLowerCase());
@@ -199,13 +186,11 @@ function updateSuggest() {
 }
 
 function pickSuggestion(path: string) {
-  const ed = $<HTMLTextAreaElement>('editor');
-  const pos = ed.selectionStart;
-  const start = ed.value.slice(0, pos).lastIndexOf('[[') + 2;
-  const after = ed.value.slice(pos).startsWith(']]') ? 2 : 0;
-  ed.setRangeText(path + ']]', start, pos + after, 'end');
-  ed.dispatchEvent(new Event('input'));
-  ed.focus();
+  const { text, from } = editor.beforeCursor();
+  const start = from + text.lastIndexOf('[[') + 2;
+  const head = from + text.length;
+  const after = editor.textAfterCursor(2) === ']]' ? 2 : 0;
+  editor.replace(start, head + after, path + ']]');
 }
 
 function updateQuickbar() {
@@ -348,9 +333,7 @@ function applySettings() {
   root.dataset.theme = store.get('theme', 'auto');
   root.style.setProperty('--font-size', store.get('font', '17') + 'px');
   root.style.setProperty('--editor-font', store.get('mono', '0') === '1' ? 'ui-monospace, Menlo, monospace' : '-apple-system, system-ui, sans-serif');
-  const ed = $<HTMLTextAreaElement>('editor');
-  const ac = store.get('autocorrect', '0') === '1';
-  ed.setAttribute('autocorrect', ac ? 'on' : 'off'); ed.setAttribute('autocapitalize', ac ? 'sentences' : 'off'); ed.spellcheck = ac;
+  editor.setAutocorrect(store.get('autocorrect', '0') === '1');
 }
 
 function download(blob: Blob, name: string) {
@@ -386,6 +369,13 @@ async function boot() {
   await init();
   gn = new Graphnote();
   gn.load(JSON.stringify(await db.getAll()));
+  editor = createEditor($('editor'), {
+    onChange: () => { scheduleSave(); },
+    onCursor: updateSuggest,
+    onWiki: (t) => void followWiki(t),
+    resolve: (t) => gn.resolve(t) !== undefined,
+  });
+  (window as unknown as { graphnote: unknown }).graphnote = { editorText: () => editor.getValue() };
   void db.requestPersist();
   applySettings();
 
@@ -429,24 +419,21 @@ async function boot() {
   });
   $('btn-today').addEventListener('click', () => void openToday());
 
-  // editor
-  const ed = $<HTMLTextAreaElement>('editor');
-  ed.addEventListener('input', () => { scheduleSave(); updateSuggest(); });
-  ed.addEventListener('keyup', updateSuggest); ed.addEventListener('click', updateSuggest);
-  ed.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') { e.preventDefault(); insert('  '); }
+  // editor shortcuts (capture phase, so they win over CodeMirror's own bindings)
+  editor.view.dom.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
-    if (mod && e.key === 'b') { e.preventDefault(); insert('**|**'); }
-    if (mod && e.key === 'i') { e.preventDefault(); insert('*|*'); }
-    if (mod && e.key === 'k') { e.preventDefault(); insert('[[|]]'); }
-    if (mod && e.key === 'Enter') { e.preventDefault(); setMode('view'); }
-  });
+    if (!mod) return;
+    const snippet = ({ b: '**|**', i: '*|*', k: '[[|]]' } as Record<string, string>)[e.key];
+    if (snippet) { e.preventDefault(); e.stopPropagation(); editor.insertSnippet(snippet); }
+    else if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); setMode('view'); }
+  }, true);
   $('quickbar').addEventListener('pointerdown', (e) => e.preventDefault()); // keep editor focus (and keyboard)
   $('quickbar').addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('button'); if (!b) return;
-    if (b.dataset.ins) insert(b.dataset.ins);
-    else if (b.dataset.act === 'indent') insert('  ');
-    else if (b.dataset.act) document.execCommand(b.dataset.act);
+    if (b.dataset.ins) editor.insertSnippet(b.dataset.ins);
+    else if (b.dataset.act === 'indent') editor.insertSnippet('  ');
+    else if (b.dataset.act === 'undo') editor.undo();
+    else if (b.dataset.act === 'redo') editor.redo();
   });
   $('suggest').addEventListener('pointerdown', (e) => e.preventDefault());
   window.visualViewport?.addEventListener('resize', updateQuickbar);

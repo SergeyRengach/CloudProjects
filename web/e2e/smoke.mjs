@@ -24,6 +24,22 @@ try {
   const items = () => page.$$eval('#list .item', (els) => els.map((e) => e.querySelector('.t').textContent));
   assert.deepEqual((await items()).sort(), ['Welcome', 'Ідеї', 'Приклад'].sort());
 
+  // live preview: markers hidden away from the cursor, shown on the cursor line; checkbox widget toggles
+  await page.click('#list .item:has-text("Welcome")');
+  await page.waitForSelector('.cm-line.cm-h1');
+  await page.focus('.cm-content');
+  await page.keyboard.press('Control+End');
+  assert.ok(!(await page.innerText('.cm-line.cm-h1')).includes('#'), 'heading marker should be hidden');
+  assert.ok((await page.$$('.cm-wikilink')).length >= 2, 'wikilinks styled');
+  assert.ok(!(await page.innerText('.cm-content')).includes('[['), 'wikilink brackets hidden');
+  await page.keyboard.press('Control+Home');
+  assert.ok((await page.innerText('.cm-line.cm-h1')).includes('# '), 'marker visible on cursor line');
+  await page.keyboard.press('Control+End');
+  await page.click('.cm-task');
+  assert.match(await page.evaluate(() => window.graphnote.editorText()), /- \[x\] Спробуйте/);
+  await page.keyboard.press('Control+z');
+  assert.match(await page.evaluate(() => window.graphnote.editorText()), /- \[ \] Спробуйте/);
+
   // backlinks of "Ідеї": Welcome links to it and "Приклад" too
   await page.click('#list .item:has-text("Ідеї")');
   await page.waitForFunction(() => document.querySelectorAll('#backlinks .item').length === 2);
@@ -31,12 +47,13 @@ try {
   // create a note via prompt, then link to it with [[ autocomplete
   await page.click('#btn-new');
   await page.waitForFunction(() => document.getElementById('title').value === 'Нова ідея');
-  await page.click('#editor');
+  await page.click('#editor .cm-content');
   await page.keyboard.press('Control+End');
   await page.keyboard.type('\nЗв\'язок: [[Ід');
   await page.waitForSelector('#suggest button:has-text("Ідеї")');
   await page.click('#suggest button:has-text("Ідеї")');
-  assert.match(await page.inputValue('#editor'), /\[\[Ідеї\]\]/);
+  const text = () => page.evaluate(() => window.graphnote.editorText());
+  assert.match(await text(), /\[\[Ідеї\]\]/);
   await page.waitForTimeout(600);
 
   // backlink appears on the target
@@ -60,7 +77,7 @@ try {
   await page.waitForFunction(() => document.getElementById('title').value === 'Думки');
   await page.click('#list .item:has-text("Нова ідея")');
   await page.click('#mode-edit');
-  assert.match(await page.inputValue('#editor'), /\[\[Думки\]\]/);
+  assert.match(await text(), /\[\[Думки\]\]/);
 
   // graph draws something and tap opens a note
   await page.click('#mode-graph');
