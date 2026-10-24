@@ -1,0 +1,16 @@
+{
+  "name": "Graphnote",
+  "short_name": "Graphnote",
+  "description": "Локальні markdown-нотатки з графом знань",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1e1e24",
+  "theme_color": "#1e1e24",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

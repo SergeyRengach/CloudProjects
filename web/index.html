@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="theme-color" content="#1e1e24" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Graphnote" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <title>Graphnote</title>
+</head>
+<body>
+  <div id="app">
+    <aside id="side" class="panel">
+      <div class="side-head">
+        <button id="btn-new" title="Нова нотатка">＋</button>
+        <button id="btn-today" title="Щоденна нотатка">Сьогодні</button>
+        <button id="btn-settings" title="Налаштування">⚙︎</button>
+      </div>
+      <input id="search" type="search" placeholder="Пошук…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <div class="tabs"><button data-tab="files" class="on">Нотатки</button><button data-tab="tags">Теги</button></div>
+      <div id="list"></div>
+    </aside>
+    <main id="main">
+      <header id="topbar">
+        <button id="btn-left" class="only-narrow" title="Нотатки">☰</button>
+        <input id="title" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Назва нотатки" />
+        <div class="seg">
+          <button id="mode-edit" class="on">Ред.</button>
+          <button id="mode-view">Перегляд</button>
+          <button id="mode-graph">Граф</button>
+        </div>
+        <button id="btn-right" class="only-narrow" title="Зв'язки">⛓</button>
+      </header>
+      <section id="stage">
+        <textarea id="editor" aria-label="Редактор"></textarea>
+        <article id="preview" hidden></article>
+        <div id="graphwrap" hidden>
+          <canvas id="graph"></canvas>
+          <div id="graphbar">
+            <button id="g-global" class="on">Глобальний</button>
+            <button id="g-local">Локальний</button>
+            <select id="g-depth"><option>1</option><option selected>2</option><option>3</option></select>
+            <label><input type="checkbox" id="g-orphans" checked /> без зв'язків</label>
+          </div>
+        </div>
+        <div id="empty" hidden>Створіть або оберіть нотатку</div>
+      </section>
+      <div id="suggest" hidden></div>
+      <div id="quickbar">
+        <button data-ins="[[|]]">[[ ]]</button>
+        <button data-ins="#">#</button>
+        <button data-ins="- ">• список</button>
+        <button data-ins="- [ ] ">☐</button>
+        <button data-ins="## ">H2</button>
+        <button data-act="indent">⇥</button>
+        <button data-act="undo">↶</button>
+        <button data-act="redo">↷</button>
+      </div>
+    </main>
+    <aside id="right" class="panel">
+      <h3>Зворотні посилання <span id="bl-count"></span></h3>
+      <div id="backlinks"></div>
+      <h3>Вихідні</h3>
+      <div id="outgoing"></div>
+      <h3>Немає нотатки</h3>
+      <div id="unresolved"></div>
+      <h3>Згадки без посилань</h3>
+      <div id="mentions"></div>
+      <h3>Пропозиції</h3>
+      <div id="suggestions" class="muted">Лише локальні евристики. ШІ-пропозиції з'являться тут.</div>
+    </aside>
+    <div id="scrim" hidden></div>
+  </div>
+  <dialog id="settings">
+    <form method="dialog">
+      <h2>Налаштування</h2>
+      <label>Тема <select id="set-theme"><option value="auto">Системна</option><option value="light">Світла</option><option value="dark">Темна</option></select></label>
+      <label>Розмір шрифту <input id="set-font" type="range" min="14" max="26" step="1" /></label>
+      <label>Шрифт <select id="set-mono"><option value="0">Пропорційний</option><option value="1">Моноширинний</option></select></label>
+      <label><input type="checkbox" id="set-autocorrect" /> Автовиправлення / T9 у редакторі</label>
+      <hr />
+      <button type="button" id="btn-export-zip">Експорт .zip (markdown)</button>
+      <button type="button" id="btn-export-json">Резервна копія JSON</button>
+      <button type="button" id="btn-import">Імпорт .md / .json</button>
+      <input type="file" id="file-import" accept=".md,.markdown,.txt,.json,text/markdown" multiple hidden />
+      <p id="storage-info" class="muted"></p>
+      <button value="close">Закрити</button>
+    </form>
+  </dialog>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

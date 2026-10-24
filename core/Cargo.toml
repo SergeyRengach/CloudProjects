@@ -1,0 +1,17 @@
+[package]
+name = "graphnote-core"
+version = "0.1.0"
+edition = "2021"
+description = "Graphnote core: markdown notes, wikilinks, graph, search (Rust -> WASM)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

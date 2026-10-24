@@ -1,0 +1,17 @@
+{
+  "name": "graphnote-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "wasm": "wasm-pack build ../core --target web --out-dir ../web/src/wasm --release",
+    "dev": "vite",
+    "build": "npm run wasm && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:e2e": "node e2e/smoke.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.3",
+    "vite": "^5.4.11"
+  }
+}

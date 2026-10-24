@@ -1,0 +1,7 @@
+target/
+node_modules/
+dist/
+web/src/wasm/
+test-results/
+*.log
+web/e2e/*.png
