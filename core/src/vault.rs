@@ -102,6 +102,11 @@ impl Vault {
         }
     }
 
+    /// Never hand out ids below `next` (ids of trashed notes live outside the vault).
+    pub fn reserve_ids(&mut self, next: NoteId) {
+        self.next_id = self.next_id.max(next);
+    }
+
     pub fn len(&self) -> usize {
         self.notes.len()
     }

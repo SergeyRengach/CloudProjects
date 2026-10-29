@@ -30,7 +30,12 @@ export interface EditorApi {
   redo(): void;
   refresh(): void;
   setAutocorrect(on: boolean): void;
+  /** Put the caret at the start of a 1-based line and scroll it to the top. */
+  gotoLine(line: number): void;
 }
+
+/** Caret marker inside snippets (a character that never appears in markdown syntax). */
+export const CARET = '‸';
 
 const refreshEffect = StateEffect.define<null>();
 
@@ -245,8 +250,8 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorAp
     insertSnippet(snippet) {
       const r = view.state.selection.main;
       const selected = view.state.sliceDoc(r.from, r.to);
-      const caret = snippet.indexOf('|');
-      const text = snippet.replace('|', selected);
+      const caret = snippet.indexOf(CARET);
+      const text = snippet.replace(CARET, selected);
       const anchor = caret >= 0 ? r.from + caret + selected.length : r.from + text.length;
       view.dispatch({ changes: { from: r.from, to: r.to, insert: text }, selection: { anchor }, scrollIntoView: true });
       view.focus();
@@ -256,5 +261,10 @@ export function createEditor(parent: HTMLElement, opts: EditorOptions): EditorAp
     redo: () => { redo(view); view.focus(); },
     refresh: () => view.dispatch({ effects: refreshEffect.of(null) }),
     setAutocorrect(on) { autocorrect = on; view.dispatch({ effects: attrs.reconfigure(contentAttrs()) }); },
+    gotoLine(n) {
+      const line = view.state.doc.line(Math.min(Math.max(1, n), view.state.doc.lines));
+      view.dispatch({ selection: { anchor: line.to }, effects: EditorView.scrollIntoView(line.from, { y: 'start', yMargin: 20 }) });
+      view.focus();
+    },
   };
 }

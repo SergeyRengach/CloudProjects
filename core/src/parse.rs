@@ -148,6 +148,49 @@ pub fn basename(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Heading {
+    pub level: u8,
+    pub text: String,
+    /// 1-based line number in the full body (front matter included).
+    pub line: u32,
+}
+
+/// ATX headings (`# ..`) outside code fences and front matter.
+pub fn parse_outline(body: &str) -> Vec<Heading> {
+    let skip = body.len() - strip_front_matter(body).len();
+    let mut out = Vec::new();
+    let (mut in_fence, mut off) = (false, 0usize);
+    for (i, line) in body.split('\n').enumerate() {
+        let start = off;
+        off += line.len() + 1;
+        if start < skip {
+            continue;
+        }
+        let t = line.trim_start();
+        if t.starts_with("```") || t.starts_with("~~~") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence || !line.starts_with('#') {
+            continue;
+        }
+        let level = line.bytes().take_while(|&b| b == b'#').count();
+        let rest = &line[level..];
+        if level <= 6 && (rest.is_empty() || rest.starts_with(' ')) {
+            let text = rest.trim().trim_end_matches('#').trim().to_string();
+            if !text.is_empty() {
+                out.push(Heading {
+                    level: level as u8,
+                    text,
+                    line: i as u32 + 1,
+                });
+            }
+        }
+    }
+    out
+}
+
 pub fn tokenize(text: &str) -> Vec<String> {
     text.split(|c: char| !c.is_alphanumeric())
         .filter(|t| !t.is_empty())
@@ -194,6 +237,27 @@ mod tests {
     fn front_matter() {
         assert_eq!(strip_front_matter("---\na: 1\n---\nbody"), "body");
         assert_eq!(strip_front_matter("no fm"), "no fm");
+    }
+
+    #[test]
+    fn outline() {
+        let o =
+            parse_outline("---\n# fm\n---\n# A\ntext\n```\n# no\n```\n### B ##\n#tag\n####### x");
+        assert_eq!(
+            o,
+            vec![
+                Heading {
+                    level: 1,
+                    text: "A".into(),
+                    line: 4
+                },
+                Heading {
+                    level: 3,
+                    text: "B".into(),
+                    line: 9
+                }
+            ]
+        );
     }
 
     #[test]

@@ -72,6 +72,10 @@ impl Graphnote {
         Ok(n)
     }
 
+    pub fn reserve_ids(&mut self, next: u32) {
+        self.vault.reserve_ids(next);
+    }
+
     pub fn note_count(&self) -> u32 {
         self.vault.len() as u32
     }
@@ -154,6 +158,15 @@ impl Graphnote {
 
     pub fn search(&self, query: &str, limit: u32) -> String {
         js(&self.vault.search(query, limit as usize))
+    }
+
+    /// Headings `[{level,text,line}]` for the outline panel.
+    pub fn outline(&self, id: u32) -> String {
+        js(&self
+            .vault
+            .get(id)
+            .map(|n| parse::parse_outline(&n.body))
+            .unwrap_or_default())
     }
 
     pub fn render_html(&self, id: u32) -> String {

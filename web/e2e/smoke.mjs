@@ -79,6 +79,58 @@ try {
   await page.click('#mode-edit');
   assert.match(await text(), /\[\[Думки\]\]/);
 
+  // command palette (Ctrl+P): fuzzy search -> open note
+  await page.keyboard.press('Control+p');
+  await page.fill('#palette input', 'прикл');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.getElementById('title').value === 'Проєкти/Приклад');
+
+  // slash menu inserts a table; # autocompletes existing tags
+  await page.focus('.cm-content');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('\n/табл');
+  await page.click('#suggest button:has-text("Таблиця")');
+  assert.match(await text(), /\| Колонка 1 \| Колонка 2 \|\n\| --- \| --- \|\n\|  \|  \|/);
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('\nтег #ід');
+  await page.click('#suggest button:has-text("#ідея")');
+  assert.match(await text(), /тег #ідея $/);
+
+  // outline lists headings and jumps to them
+  await page.waitForSelector('#outline .item:has-text("Приклад проєкту")');
+
+  // folder tree collapses
+  await page.click('.folder:has-text("Проєкти")');
+  assert.equal(await page.$('#list .item:has-text("Приклад")'), null);
+  await page.click('.folder:has-text("Проєкти")');
+  await page.waitForSelector('#list .item:has-text("Приклад")');
+
+  // note actions: pin, version history, trash + restore
+  await page.click('#list .item:has-text("Нова ідея")');
+  await page.click('#btn-more');
+  await page.click('.pal-item:has-text("Закріпити")');
+  await page.waitForSelector('.list-section:has-text("Закріплені")');
+  await page.click('#btn-more');
+  await page.click('.pal-item:has-text("Історія версій")');
+  await page.waitForSelector('.pal-item'); // at least one snapshot (taken before the first edit)
+  await page.keyboard.press('Escape');
+  await page.click('#btn-more');
+  await page.click('.pal-item:has-text("кошик")');
+  await page.waitForFunction(() => ![...document.querySelectorAll('#list .item .t')].some((e) => e.textContent.includes('Нова ідея')));
+  await page.click('.tabs button[data-tab="trash"]');
+  await page.click('[data-restore]');
+  await page.waitForFunction(() => document.getElementById('title').value === 'Нова ідея');
+  assert.match(await text(), /\[\[Думки\]\]/);
+  await page.click('.tabs button[data-tab="files"]');
+
+  // ![[embed]] renders the other note inline in preview
+  await page.focus('.cm-content');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('\n![[Думки]]\n');
+  await page.click('#mode-view');
+  await page.waitForSelector('#preview .embed h1');
+  await page.click('#mode-edit');
+
   // graph draws something and tap opens a note
   await page.click('#mode-graph');
   await page.waitForTimeout(2500);

@@ -19,10 +19,11 @@
       <div class="side-head">
         <button id="btn-new" title="Нова нотатка">＋</button>
         <button id="btn-today" title="Щоденна нотатка">Сьогодні</button>
+        <button id="btn-palette" title="Команди та пошук (⌘P)">⌘</button>
         <button id="btn-settings" title="Налаштування">⚙︎</button>
       </div>
       <input id="search" type="search" placeholder="Пошук…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
-      <div class="tabs"><button data-tab="files" class="on">Нотатки</button><button data-tab="tags">Теги</button></div>
+      <div class="tabs"><button data-tab="files" class="on">Нотатки</button><button data-tab="recent">Недавні</button><button data-tab="tags">Теги</button><button data-tab="trash" title="Кошик">🗑</button></div>
       <div id="list"></div>
     </aside>
     <main id="main">
@@ -34,6 +35,8 @@
           <button id="mode-view">Перегляд</button>
           <button id="mode-graph">Граф</button>
         </div>
+        <button id="btn-focus" class="only-wide" title="Режим фокусу (⌘⇧F)">⤢</button>
+        <button id="btn-more" title="Дії з нотаткою">⋯</button>
         <button id="btn-right" class="only-narrow" title="Зв'язки">⛓</button>
       </header>
       <section id="stage">
@@ -49,10 +52,12 @@
           </div>
         </div>
         <div id="empty" hidden>Створіть або оберіть нотатку</div>
+        <div id="status" aria-live="polite"></div>
       </section>
       <div id="suggest" hidden></div>
       <div id="quickbar">
-        <button data-ins="[[|]]">[[ ]]</button>
+        <button data-ins="[[‸]]">[[ ]]</button>
+        <button data-ins="/">/ команди</button>
         <button data-ins="#">#</button>
         <button data-ins="- ">• список</button>
         <button data-ins="- [ ] ">☐</button>
@@ -63,6 +68,8 @@
       </div>
     </main>
     <aside id="right" class="panel">
+      <h3>Зміст</h3>
+      <div id="outline"></div>
       <h3>Зворотні посилання <span id="bl-count"></span></h3>
       <div id="backlinks"></div>
       <h3>Вихідні</h3>

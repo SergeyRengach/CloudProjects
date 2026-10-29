@@ -17,7 +17,6 @@ fn pct(s: &str) -> String {
 
 pub fn render_html(body: &str) -> String {
     let body = strip_front_matter(body);
-    let off = 0;
     let mut src = body.to_string();
     for l in parse_links(body).iter().rev() {
         let label = l.alias.clone().unwrap_or_else(|| match &l.heading {
@@ -25,10 +24,18 @@ pub fn render_html(body: &str) -> String {
             None => l.target.clone(),
         });
         let label = label.replace('[', "\\[").replace(']', "\\]");
-        src.replace_range(
-            l.start + off..l.end + off,
-            &format!("[{label}](wikilink:{})", pct(&l.target)),
-        );
+        // `![[note]]` embeds: the UI swaps `embed:` links for the rendered note.
+        if l.start > 0 && body.as_bytes()[l.start - 1] == b'!' {
+            src.replace_range(
+                l.start - 1..l.end,
+                &format!("[{label}](embed:{})", pct(&l.target)),
+            );
+        } else {
+            src.replace_range(
+                l.start..l.end,
+                &format!("[{label}](wikilink:{})", pct(&l.target)),
+            );
+        }
     }
     let opts = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
     let events = Parser::new_ext(&src, opts).map(|e| match e {
@@ -39,7 +46,7 @@ pub fn render_html(body: &str) -> String {
             title,
             id,
         }) => {
-            let ok = ["http://", "https://", "mailto:", "wikilink:", "#"]
+            let ok = ["http://", "https://", "mailto:", "wikilink:", "embed:", "#"]
                 .iter()
                 .any(|p| dest_url.starts_with(p));
             let dest_url = if ok { dest_url } else { CowStr::Borrowed("#") };
@@ -93,6 +100,14 @@ mod tests {
             !h.contains("href=\"data:") && !h.contains("href=\"vbscript"),
             "{h}"
         );
+    }
+
+    #[test]
+    fn embeds() {
+        let h = render_html("before ![[Other note]] after [[x]]");
+        assert!(h.contains("href=\"embed:Other%20note\""), "{h}");
+        assert!(h.contains("href=\"wikilink:x\""));
+        assert!(!h.contains('!'));
     }
 
     #[test]
